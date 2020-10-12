@@ -6,33 +6,28 @@
 #include <vector>
 #include <thread>
 #include <mutex>
+#include "server.hh"
 
-char buffer[60];
-std::mutex buffer_mutex;
-std::vector<int> clients;
-
-void handler(int clientfd) 
+void handler(Server& server, int clientfd) 
 {
     ssize_t size;
-    clients.push_back(clientfd);
+    server.clients.push_back(clientfd);
     while (1)
     {
-        size = recv(clientfd, buffer, sizeof(buffer), 0);
-        const std::lock_guard<std::mutex> lock(buffer_mutex);
+        size = recv(clientfd, server.buffer, sizeof(server.buffer), 0);
+        const std::lock_guard<std::mutex> lock(server.buffer_mutex);
         {
             std::cout << size << std::endl;
-            for (int i = 0; i < clients.size(); i++)
-                send(clients[i], buffer, size, MSG_NOSIGNAL);
+            for (int i = 0; i < server.clients.size(); i++)
+                send(server.clients[i], server.buffer, size, MSG_NOSIGNAL);
         }
     }
 }
 
-int main()
+Server::Server()
 {
     constexpr uint16_t port = 8080;
-    int clientfd, sockfd;
-    size_t len;
-    struct sockaddr_in serv_addr, client_addr;
+    struct sockaddr_in serv_addr;
     int opt = 1;
 
     if ((sockfd = socket(AF_INET, SOCK_STREAM, 0)) == -1)
@@ -65,14 +60,36 @@ int main()
         perror("listen");
         exit(1);
     } 
+}
 
+int main(int argc, char** argv)
+{
+    if (argc != 3)
+    {
+        std::cerr << "Usage: ./server <buy_threshold> <sell_threshold>" 
+            << std::endl;
+        std::cerr << "Example: ./server 15 20" << std::endl;
+        exit(1);
+    }
+    std::string arg1 = argv[1];
+    std::string arg2 = argv[2];
+
+    int buy_threshold = std::stoi(arg1);
+    int sell_threshold = std::stoi(arg2);
+
+    Server server;
+
+    int clientfd;
+    size_t len;
+    struct sockaddr_in client_addr;
     std::vector<std::thread> threads;
+
     while (1)
     {
 
         len = sizeof(client_addr); 
 
-        clientfd = accept(sockfd, (struct sockaddr*)&client_addr, (socklen_t*)&len); 
+        clientfd = accept(server.sockfd, (struct sockaddr*)&client_addr, (socklen_t*)&len); 
         if (clientfd < 0) { 
             perror("accept"); 
             continue; 
@@ -80,11 +97,11 @@ int main()
         else
             printf("server acccept the client...\n"); 
 
-        threads.push_back(std::thread(&handler, clientfd));
+        threads.push_back(std::thread(&handler, std::ref(server), clientfd));
     }
     for (auto&& t : threads)
     {
         t.join();
     }
-    close(sockfd); 
+    close(server.sockfd); 
 } 
