@@ -118,13 +118,16 @@ void request_handler(Server& server, int clientfd)
                 auto search = server.listingId_to_data.find(listing);
                 if (search != server.listingId_to_data.end())
                 {
+
+                    for (auto it = server.orders.begin(), next_it = it; it != server.orders.end(); it = next_it)
+                    {
+                        ++next_it;
+                        if (it->second.listingId == listing)
+                            server.orders.erase(it);
+                    }   
                     server.listingId_to_data.erase(search);
                     server.clientfd_to_listingId.erase(clientfd);
-                    for (auto& [key, val] : server.orders)
-                    {
-                        if (val.listingId == listing)
-                            server.orders.erase(key);
-                    }
+
                 }
                 break;
             }

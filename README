@@ -1,0 +1,3 @@
+Usage: ./server <buy_threshold> <sell_threshold>
+
+ex: ./server 15 20
