@@ -8,22 +8,6 @@
 #include <mutex>
 #include "server.hh"
 
-void handler(Server& server, int clientfd) 
-{
-    ssize_t size;
-    server.clients.push_back(clientfd);
-    while (1)
-    {
-        size = recv(clientfd, server.buffer, sizeof(server.buffer), 0);
-        const std::lock_guard<std::mutex> lock(server.buffer_mutex);
-        {
-            std::cout << size << std::endl;
-            for (int i = 0; i < server.clients.size(); i++)
-                send(server.clients[i], server.buffer, size, MSG_NOSIGNAL);
-        }
-    }
-}
-
 Server::Server()
 {
     constexpr uint16_t port = 8080;
@@ -62,6 +46,55 @@ Server::Server()
     } 
 }
 
+void parse_msg(Server& server)
+{
+    Header header;
+    header.version = (server.buffer[0] << 8 ) | server.buffer[1];
+    header.payloadSize = (server.buffer[2] << 8 ) | server.buffer[3];
+
+    uint8_t* skipheader = server.buffer + sizeof(Header);
+    if (header.payloadSize == sizeof(NewOrder))
+    {
+        NewOrder neworder = parse_neworder(skipheader);
+
+    }
+    else if (header.payloadSize == sizeof(DeleteOrder))
+    {
+        DeleteOrder delorder = parse_delorder(skipheader);
+    }
+    else if (header.payloadSize == sizeof(ModifyOrderQuantity))
+    {
+        ModifyOrderQuantity modify = parse_modify(skipheader);
+    }
+    else if (header.payloadSize == sizeof(Trade))
+    {
+        Trade trade = parse_trade(skipheader);
+    }
+    //compute
+}
+
+void request_handler(Server& server, int clientfd) 
+{
+    ssize_t size;
+    server.clients.push_back(clientfd);
+    while (1)
+    {
+        size = recv(clientfd, server.buffer, sizeof(server.buffer), 0);
+        const std::lock_guard<std::mutex> lock(server.buffer_mutex);
+        {
+            if (size == 0) /*TODO*/
+            {
+                std::cout << "delete " << clientfd << std::endl;
+                break;
+            }
+            parse_msg(server);
+            std::cout << size << std::endl;
+            for (auto& client : server.clients)
+                send(client, server.buffer, size, MSG_NOSIGNAL);
+        }
+    }
+}
+
 int main(int argc, char** argv)
 {
     if (argc != 3)
@@ -86,7 +119,6 @@ int main(int argc, char** argv)
 
     while (1)
     {
-
         len = sizeof(client_addr); 
 
         clientfd = accept(server.sockfd, (struct sockaddr*)&client_addr, (socklen_t*)&len); 
@@ -97,7 +129,7 @@ int main(int argc, char** argv)
         else
             printf("server acccept the client...\n"); 
 
-        threads.push_back(std::thread(&handler, std::ref(server), clientfd));
+        threads.push_back(std::thread(&request_handler, std::ref(server), clientfd));
     }
     for (auto&& t : threads)
     {
