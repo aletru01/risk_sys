@@ -10,24 +10,25 @@ struct Data
     int netpos;
     int buyqty;
     int sellqty;
-    int buyside;
-    int sellside;
+    int buyhypo;
+    int sellhypo;
 };
 
 class Server
 {
   public:
     Server();
+    Server(const Server&) = delete;
+
     int sockfd;
+    int buy_threshold;
+    int sell_threshold;
+    int respId;
 
     uint8_t buffer[60];
     std::mutex buffer_mutex;
-    std::vector<int> clients;//a enlever 
 
-
-    std::unordered_map<int, int> clientfd_to_listingId;
-    std::unordered_map<int, Data> listingId_to_Data; //delete information of trader
-    //std::vector<Data> traders;
-    std::unordered_map<int, NewOrder> Orders; //new, delete, modify; will update Data
-
+    std::unordered_map<int, uint64_t> clientfd_to_listingId;
+    std::unordered_map<uint64_t, Data> listingId_to_data;
+    std::unordered_map<int, NewOrder> orders;
 };

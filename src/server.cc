@@ -5,8 +5,8 @@
 #include <cstring>
 #include <vector>
 #include <thread>
-#include <mutex>
 #include "server.hh"
+#include "update_table.hh"
 
 Server::Server()
 {
@@ -46,7 +46,7 @@ Server::Server()
     } 
 }
 
-void parse_msg(Server& server)
+int parse_msg(Server& server, int clientfd)
 {
     Header header;
     header.version = (server.buffer[0] << 8 ) | server.buffer[1];
@@ -56,41 +56,101 @@ void parse_msg(Server& server)
     if (header.payloadSize == sizeof(NewOrder))
     {
         NewOrder neworder = parse_neworder(skipheader);
-
+        server.clientfd_to_listingId[clientfd] = neworder.listingId;
+        add_order_table(server, neworder);
     }
     else if (header.payloadSize == sizeof(DeleteOrder))
     {
         DeleteOrder delorder = parse_delorder(skipheader);
+        delete_order_table(server, delorder);
+        compute_hypothetical(server);
+        return -1;
     }
     else if (header.payloadSize == sizeof(ModifyOrderQuantity))
     {
         ModifyOrderQuantity modify = parse_modify(skipheader);
+        modify_order_qty(server, modify);
     }
     else if (header.payloadSize == sizeof(Trade))
     {
         Trade trade = parse_trade(skipheader);
+        trade_table(server, trade);
+        return -1;
     }
-    //compute
+    int ret = compute_hypothetical(server);
+    return ret;
+}
+
+uint8_t* convert_order_to_bytes(OrderResponse order_resp)
+{
+    uint8_t* response = new uint8_t[sizeof(OrderResponse) + 1];
+    response[0] = (static_cast<uint8_t>(order_resp.messageType) >> 8) & 0xFF;
+    response[1] = (static_cast<uint8_t>(order_resp.messageType)) & 0xFF;
+    
+    response[2] = (uint8_t) ((order_resp.orderId >> 56) & 0xFF);
+    response[3] = (uint8_t) ((order_resp.orderId >> 48) & 0xFF);
+    response[4] = (uint8_t) ((order_resp.orderId >> 40) & 0xFF);
+    response[5] = (uint8_t) ((order_resp.orderId >> 32) & 0xFF);
+    response[6] = (uint8_t) ((order_resp.orderId >> 24) & 0xFF);
+    response[7] = (uint8_t) ((order_resp.orderId >> 16) & 0xFF);
+    response[8] = (uint8_t) ((order_resp.orderId >> 8) & 0xFF);
+    response[9] = (uint8_t) ((order_resp.orderId >> 0) & 0xFF);
+
+    response[10] = (static_cast<uint8_t>(order_resp.status) >> 8) & 0xFF;
+    response[11] = (static_cast<uint8_t>(order_resp.status)) & 0xFF;
+
+    return response;
 }
 
 void request_handler(Server& server, int clientfd) 
 {
     ssize_t size;
-    server.clients.push_back(clientfd);
+    server.clientfd_to_listingId.emplace(clientfd, 0);
     while (1)
     {
         size = recv(clientfd, server.buffer, sizeof(server.buffer), 0);
+        std::unordered_map<uint64_t, Data> map_copy = server.listingId_to_data;
         const std::lock_guard<std::mutex> lock(server.buffer_mutex);
         {
-            if (size == 0) /*TODO*/
+            if (size == 0)
             {
-                std::cout << "delete " << clientfd << std::endl;
+                auto listing = server.clientfd_to_listingId[clientfd];
+                auto search = server.listingId_to_data.find(listing);
+                if (search != server.listingId_to_data.end())
+                {
+                    server.listingId_to_data.erase(search);
+                    server.clientfd_to_listingId.erase(clientfd);
+                    for (auto& [key, val] : server.orders)
+                    {
+                        if (val.listingId == listing)
+                            server.orders.erase(key);
+                    }
+                }
                 break;
             }
-            parse_msg(server);
-            std::cout << size << std::endl;
-            for (auto& client : server.clients)
-                send(client, server.buffer, size, MSG_NOSIGNAL);
+            int success = parse_msg(server, clientfd);
+
+            OrderResponse order_resp;
+            order_resp.messageType = 5;
+            order_resp.orderId = server.respId;
+
+            if (success == 0)
+            {
+                server.listingId_to_data = map_copy;
+                order_resp.status = OrderResponse::Status::REJECTED;
+            }
+            else if (success == 1)
+                order_resp.status = OrderResponse::Status::ACCEPTED;
+
+            uint8_t* response;
+            if (success == -1)
+                response = nullptr;
+            else
+                response = convert_order_to_bytes(order_resp);
+
+            for (auto const& [client, listid] : server.clientfd_to_listingId)
+                send(client, response, size, MSG_NOSIGNAL);
+            delete response;
         }
     }
 }
@@ -107,10 +167,9 @@ int main(int argc, char** argv)
     std::string arg1 = argv[1];
     std::string arg2 = argv[2];
 
-    int buy_threshold = std::stoi(arg1);
-    int sell_threshold = std::stoi(arg2);
-
     Server server;
+    server.buy_threshold = std::stoi(arg1);
+    server.sell_threshold = std::stoi(arg2);
 
     int clientfd;
     size_t len;
