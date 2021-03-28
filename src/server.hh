@@ -32,3 +32,5 @@ class Server
     std::unordered_map<uint64_t, Data> listingId_to_data;
     std::unordered_map<int, NewOrder> orders;
 };
+
+void request_handler(Server& server, int clientfd);
