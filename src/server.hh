@@ -33,4 +33,4 @@ class Server
     std::unordered_map<int, NewOrder> orders;
 };
 
-void request_handler(Server& server, int clientfd);
+void request_handler(int id, Server& server, int clientfd);

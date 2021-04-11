@@ -1,11 +1,15 @@
 #include <iostream>
 #include <unistd.h>
 #include <netdb.h>
+#include "ctpl.h"
 #include "server.hh"
-#include <thread>
 
 int main(int argc, char** argv)
 {
+    int clientfd;
+    size_t len;
+    struct sockaddr_in client_addr;
+
     if (argc != 3)
     {
         std::cerr << "Usage: ./server <buy_threshold> <sell_threshold>" 
@@ -20,12 +24,8 @@ int main(int argc, char** argv)
     server.buy_threshold = std::stoi(arg1);
     server.sell_threshold = std::stoi(arg2);
 
-    int clientfd;
-    size_t len;
-    struct sockaddr_in client_addr;
-    std::vector<std::thread> threads;
-
-    while (1)
+    ctpl::thread_pool tp(4);
+    while (true)
     {
         len = sizeof(client_addr); 
 
@@ -35,14 +35,8 @@ int main(int argc, char** argv)
             continue; 
         } 
         else
-            printf("server acccept the client...\n"); 
+            std::cout << "server acccept the client..." << std::endl;
 
-        threads.push_back(std::thread(&request_handler, std::ref(server), clientfd));
+        tp.push(request_handler, std::ref(server), clientfd);
     }
-    for (auto&& t : threads)
-    {
-        t.join();
-    }
-    close(server.sockfd); 
 } 
-

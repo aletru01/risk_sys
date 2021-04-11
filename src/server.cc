@@ -102,7 +102,7 @@ uint8_t* convert_order_to_bytes(OrderResponse order_resp)
     return response;
 }
 
-void request_handler(Server& server, int clientfd) 
+void request_handler([[maybe_unused]] int id, Server& server, int clientfd) 
 {
     ssize_t size;
     server.clientfd_to_listingId.emplace(clientfd, 0);
