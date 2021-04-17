@@ -1,8 +1,11 @@
 #include "parse_msg.hh"
-#include <iostream>
+#include <cstddef>
 
-uint64_t convert_uint8_to_uint64(uint8_t* buffer)
+static uint64_t get_entry(const uint8_t* buffer, std::size_t& offset)
 {
+    buffer += offset;
+    offset += sizeof(uint64_t);
+
     return (uint64_t)buffer[0] << 56 |
            (uint64_t)buffer[1] << 48 |
            (uint64_t)buffer[2] << 40 |
@@ -13,81 +16,54 @@ uint64_t convert_uint8_to_uint64(uint8_t* buffer)
            (uint64_t)buffer[7] << 0;
 }
 
-NewOrder parse_neworder(uint8_t* buffer)
+NewOrder parse_new_order(const uint8_t* buffer)
 {
-    NewOrder neworder;
-    size_t offset = 0;
-    
-    neworder.messageType = (buffer[offset] << 8) | buffer[offset+1];
-    offset += sizeof(neworder.messageType);
-    
-    neworder.listingId = convert_uint8_to_uint64(buffer + offset);
-    offset += sizeof(neworder.listingId);
-    
-    neworder.orderId = convert_uint8_to_uint64(buffer + offset);
-    offset += sizeof(neworder.orderId);
+    NewOrder new_order;
+    std::size_t offset = 0;
 
-    neworder.orderQuantity = convert_uint8_to_uint64(buffer + offset);
-    offset += sizeof(neworder.orderQuantity);
-    
-    neworder.orderPrice = convert_uint8_to_uint64(buffer + offset);
-    offset += sizeof(neworder.orderPrice);
+    new_order.messageType = 1;
+    new_order.listingId = get_entry(buffer, offset);
+    new_order.orderId = get_entry(buffer, offset);
+    new_order.orderQuantity = get_entry(buffer, offset);
+    new_order.orderPrice = get_entry(buffer, offset);
+    new_order.side = buffer[offset];
 
-    neworder.side = buffer[offset];
-
-    return neworder;
+    return new_order;
 }
 
-DeleteOrder parse_delorder(uint8_t* buffer)
+DeleteOrder parse_del_order(const uint8_t* buffer)
 {
-    DeleteOrder delorder;
-    size_t offset = 0;
+    DeleteOrder del_order;
+    std::size_t offset = 0;
 
-    delorder.messageType = (buffer[offset] << 8) | buffer[offset+1];
-    offset += sizeof(delorder.messageType);
+    del_order.messageType = 2;
+    del_order.orderId = get_entry(buffer, offset);
 
-    delorder.orderId = convert_uint8_to_uint64(buffer + offset);
-
-    return delorder;
+    return del_order;
 }
 
-ModifyOrderQuantity parse_modify(uint8_t* buffer)
+ModifyOrderQuantity parse_modify(const uint8_t* buffer)
 {
     ModifyOrderQuantity modify;
-    size_t offset = 0;
+    std::size_t offset = 0;
 
-    modify.messageType = (buffer[offset] << 8) | buffer[offset+1];
-    offset += sizeof(modify.messageType);
-
-    modify.orderId = convert_uint8_to_uint64(buffer + offset);
-    offset += sizeof(modify.orderId);
-
-    modify.newQuantity = convert_uint8_to_uint64(buffer + offset);
-    offset += sizeof(modify.newQuantity);
+    modify.messageType = 3;
+    modify.orderId = get_entry(buffer, offset);
+    modify.newQuantity = get_entry(buffer, offset);
 
     return modify;
 }
 
-Trade parse_trade(uint8_t* buffer)
+Trade parse_trade(const uint8_t* buffer)
 {
     Trade trade;
-    size_t offset = 0;
+    std::size_t offset = 0;
     
-    trade.messageType = (buffer[offset] << 8) | buffer[offset+1];
-    offset += sizeof(trade.messageType);
-    
-    trade.listingId = convert_uint8_to_uint64(buffer + offset);
-    offset += sizeof(trade.listingId);
-    
-    trade.tradeId = convert_uint8_to_uint64(buffer + offset);
-    offset += sizeof(trade.tradeId);
-
-    trade.tradeQuantity = convert_uint8_to_uint64(buffer + offset);
-    offset += sizeof(trade.tradeQuantity);
-    
-    trade.tradePrice = convert_uint8_to_uint64(buffer + offset);
-    offset += sizeof(trade.tradePrice);
+    trade.messageType = 4;
+    trade.listingId = get_entry(buffer, offset);
+    trade.tradeId = get_entry(buffer, offset);
+    trade.tradeQuantity = get_entry(buffer, offset);
+    trade.tradePrice = get_entry(buffer, offset);
 
     return trade;
 }
-

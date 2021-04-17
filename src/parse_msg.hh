@@ -65,7 +65,7 @@ struct OrderResponse
 } __attribute__ ((__packed__));
 static_assert(sizeof(OrderResponse) == 12, "The OrderResponse size is not correct");
 
-NewOrder parse_neworder(uint8_t* buffer);
-DeleteOrder parse_delorder(uint8_t* buffer);
-ModifyOrderQuantity parse_modify(uint8_t* buffer);
-Trade parse_trade(uint8_t* buffer);
+NewOrder parse_new_order(const uint8_t* buffer);
+DeleteOrder parse_del_order(const uint8_t* buffer);
+ModifyOrderQuantity parse_modify(const uint8_t* buffer);
+Trade parse_trade(const uint8_t* buffer);

@@ -1,78 +1,79 @@
-#include "update_table.hh"
+#include "server.hh"
 
-void add_order_table(Server& server, NewOrder& neworder)
+void Server::add_order_table(const NewOrder& new_order)
 {
-    auto search = server.listingId_to_data.find(neworder.listingId);
-    if (search != server.listingId_to_data.end())
+    int buyqty = 0;
+    int sellqty = 0;
+    auto listingId = new_order.listingId;
+    auto search = listingId_to_data.find(listingId);
+
+    if (search != listingId_to_data.end())
     {
-        if (neworder.side == 'B')
-            server.listingId_to_data[neworder.listingId].buyqty += neworder.orderQuantity;
+        if (new_order.side == 'B')
+            listingId_to_data[new_order.listingId].buyqty += new_order.orderQuantity;
         else
-            server.listingId_to_data[neworder.listingId].sellqty += neworder.orderQuantity;
+            listingId_to_data[new_order.listingId].sellqty += new_order.orderQuantity;
     }
     else
     {
-        int buyqty = 0;
-        int sellqty = 0;
-
-        if (neworder.side == 'B')
-            buyqty = neworder.orderQuantity;
+        if (new_order.side == 'B')
+            buyqty = new_order.orderQuantity;
         else
-            sellqty = neworder.orderQuantity;
+            sellqty = new_order.orderQuantity;
+    
         Data data = {0, buyqty, sellqty, 0, 0 };
-
-        auto listingId = neworder.listingId;
-        server.listingId_to_data.emplace(listingId, data);
+        listingId_to_data.emplace(listingId, data);
     }
-    auto orderId = neworder.orderId;
-    server.orders.emplace(orderId, neworder);
-    server.respId = neworder.orderId;
+    auto orderId = new_order.orderId;
+    orders.emplace(orderId, new_order);
+    respId = new_order.orderId;
 }
 
-void delete_order_table(Server& server, DeleteOrder& delorder)
+void Server::delete_order_table(const DeleteOrder& del_order)
 {
-    NewOrder order = server.orders[delorder.orderId];
+    NewOrder order = orders[del_order.orderId];
+
     if (order.side == 'B')
-        server.listingId_to_data[order.listingId].buyqty -= order.orderQuantity;
+        listingId_to_data[order.listingId].buyqty -= order.orderQuantity;
     else
-        server.listingId_to_data[order.listingId].sellqty -= order.orderQuantity;
+        listingId_to_data[order.listingId].sellqty -= order.orderQuantity;
 
-    server.orders.erase(delorder.orderId);
+    orders.erase(del_order.orderId);
 }
 
-void modify_order_qty(Server& server, ModifyOrderQuantity& modify)
+void Server::modify_order_qty(const ModifyOrderQuantity& modify)
 {
-    NewOrder order = server.orders[modify.orderId];
+    NewOrder order = orders[modify.orderId];
     int oldqty = order.orderQuantity;
 
     if (order.side == 'B')
-        server.listingId_to_data[order.listingId].buyqty += modify.newQuantity - oldqty;
+        listingId_to_data[order.listingId].buyqty += modify.newQuantity - oldqty;
     else
-        server.listingId_to_data[order.listingId].sellqty += modify.newQuantity;
-    server.respId = modify.orderId;
+        listingId_to_data[order.listingId].sellqty += modify.newQuantity;
+    respId = modify.orderId;
 }
 
-void trade_table(Server& server, Trade& t)
+void Server::trade_table(const Trade& t)
 {
     int64_t quantity = t.tradeQuantity;
-    server.listingId_to_data[t.listingId].netpos += quantity;
+    listingId_to_data[t.listingId].netpos += quantity;
 
-    int netpos  = server.listingId_to_data[t.listingId].netpos;
-    int buyqty  = server.listingId_to_data[t.listingId].buyqty;
-    int sellqty = server.listingId_to_data[t.listingId].sellqty;
+    int netpos  = listingId_to_data[t.listingId].netpos;
+    int buyqty  = listingId_to_data[t.listingId].buyqty;
+    int sellqty = listingId_to_data[t.listingId].sellqty;
 
-    server.listingId_to_data[t.listingId].buyhypo = std::max(buyqty, netpos + buyqty);
-    server.listingId_to_data[t.listingId].buyhypo = std::max(sellqty, sellqty - netpos);
+    listingId_to_data[t.listingId].buyhypo = std::max(buyqty, netpos + buyqty);
+    listingId_to_data[t.listingId].sellhypo = std::max(sellqty, sellqty - netpos);
 }
 
-int compute_hypothetical(Server& server)
+int Server::compute_hypothetical(void)
 {
-    for (auto& [id, data] : server.listingId_to_data)
+    for (auto& [id, data] : listingId_to_data)
     {
         data.buyhypo = std::max(data.buyqty, data.netpos + data.buyqty);
         data.sellhypo = std::max(data.sellqty, data.sellqty - data.netpos);
-        if (data.buyhypo > server.buy_threshold || 
-                data.sellhypo > server.sell_threshold)
+        if (data.buyhypo > buy_threshold || 
+                data.sellhypo > sell_threshold)
             return 0;
     }
     return 1;

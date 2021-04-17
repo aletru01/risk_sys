@@ -4,6 +4,8 @@
 #include "ctpl.h"
 #include "server.hh"
 
+constexpr int THREAD_POOL_NUMBER = 10;
+
 int main(int argc, char** argv)
 {
     int clientfd;
@@ -24,12 +26,14 @@ int main(int argc, char** argv)
     server.buy_threshold = std::stoi(arg1);
     server.sell_threshold = std::stoi(arg2);
 
-    ctpl::thread_pool tp(4);
+    ctpl::thread_pool tp(THREAD_POOL_NUMBER);
     while (true)
     {
         len = sizeof(client_addr); 
 
-        clientfd = accept(server.sockfd, (struct sockaddr*)&client_addr, (socklen_t*)&len); 
+        clientfd = accept(server.sockfd, 
+                (struct sockaddr*)&client_addr, (socklen_t*)&len); 
+
         if (clientfd < 0) { 
             perror("accept"); 
             continue; 
