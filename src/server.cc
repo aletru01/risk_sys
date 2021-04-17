@@ -99,6 +99,11 @@ int Server::process_msg(int clientfd)
     return ret;
 }
 
+/* 
+ * casting or using memcpy for example are not portable because of endianess
+ * of different systems. This is the only secure and portable way of doing it.
+ */
+
 static void create_response(const OrderResponse& order_resp, 
                             std::array<uint8_t, SIZE>& response)
 {

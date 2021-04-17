@@ -1,6 +1,10 @@
 #include "parse_msg.hh"
 #include <cstddef>
 
+/* 
+ * casting or using memcpy for example are not portable because of endianess
+ * of different systems. This is the only secure and portable way of doing it.
+ */
 static uint64_t get_entry(const uint8_t* buffer, std::size_t& offset)
 {
     buffer += offset;
