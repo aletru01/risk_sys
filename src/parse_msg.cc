@@ -25,11 +25,11 @@ NewOrder parse_new_order(const uint8_t* buffer)
     NewOrder new_order;
     std::size_t offset = 0;
 
-    new_order.messageType = 1;
-    new_order.listingId = get_entry(buffer, offset);
-    new_order.orderId = get_entry(buffer, offset);
-    new_order.orderQuantity = get_entry(buffer, offset);
-    new_order.orderPrice = get_entry(buffer, offset);
+    new_order.message_type = 1;
+    new_order.listing_id = get_entry(buffer, offset);
+    new_order.order_id = get_entry(buffer, offset);
+    new_order.order_quantity = get_entry(buffer, offset);
+    new_order.order_price = get_entry(buffer, offset);
     new_order.side = buffer[offset];
 
     return new_order;
@@ -40,8 +40,8 @@ DeleteOrder parse_del_order(const uint8_t* buffer)
     DeleteOrder del_order;
     std::size_t offset = 0;
 
-    del_order.messageType = 2;
-    del_order.orderId = get_entry(buffer, offset);
+    del_order.message_type = 2;
+    del_order.order_id = get_entry(buffer, offset);
 
     return del_order;
 }
@@ -51,9 +51,9 @@ ModifyOrderQuantity parse_modify(const uint8_t* buffer)
     ModifyOrderQuantity modify;
     std::size_t offset = 0;
 
-    modify.messageType = 3;
-    modify.orderId = get_entry(buffer, offset);
-    modify.newQuantity = get_entry(buffer, offset);
+    modify.message_type = 3;
+    modify.order_id = get_entry(buffer, offset);
+    modify.new_quantity = get_entry(buffer, offset);
 
     return modify;
 }
@@ -63,11 +63,11 @@ Trade parse_trade(const uint8_t* buffer)
     Trade trade;
     std::size_t offset = 0;
     
-    trade.messageType = 4;
-    trade.listingId = get_entry(buffer, offset);
-    trade.tradeId = get_entry(buffer, offset);
-    trade.tradeQuantity = get_entry(buffer, offset);
-    trade.tradePrice = get_entry(buffer, offset);
+    trade.message_type = 4;
+    trade.listing_id = get_entry(buffer, offset);
+    trade.trade_id = get_entry(buffer, offset);
+    trade.trade_quantity = get_entry(buffer, offset);
+    trade.trade_price = get_entry(buffer, offset);
 
     return trade;
 }

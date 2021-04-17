@@ -27,13 +27,13 @@ class Server
     int sockfd;
     int buy_threshold;
     int sell_threshold;
-    int respId;
+    int resp_id;
 
     uint8_t buffer[60];
     std::mutex buffer_mutex;
 
-    std::unordered_map<int, uint64_t> clientfd_to_listingId;
-    std::unordered_map<uint64_t, Data> listingId_to_data;
+    std::unordered_map<int, uint64_t> clientfd_to_listing_id;
+    std::unordered_map<uint64_t, Data> listing_id_to_data;
     std::unordered_map<int, NewOrder> orders;
 
     void erase_client_data(int clientfd);

@@ -54,11 +54,11 @@ Server::~Server()
 static inline uint16_t get_metadata_msg(Header& header, const uint8_t*& buffer)
 {
     header.version = (buffer[0] << 8 ) | buffer[1];
-    header.payloadSize = (buffer[2] << 8 ) | buffer[3];
+    header.payload_size = (buffer[2] << 8 ) | buffer[3];
     buffer += sizeof(Header);
-    uint16_t messageType = (buffer[0] << 8) | buffer[1];
-    buffer += sizeof(messageType);
-    return messageType;
+    uint16_t message_type = (buffer[0] << 8) | buffer[1];
+    buffer += sizeof(message_type);
+    return message_type;
 }
 
 int Server::process_msg(int clientfd)
@@ -66,27 +66,27 @@ int Server::process_msg(int clientfd)
     Header header;
     int ret;
     const uint8_t* buffer = this->buffer;
-    uint16_t messageType = get_metadata_msg(header, buffer);
+    uint16_t message_type = get_metadata_msg(header, buffer);
 
-    if (messageType == 1 && header.payloadSize == sizeof(NewOrder))
+    if (message_type == 1 && header.payload_size == sizeof(NewOrder))
     {
-        NewOrder neworder = parse_new_order(buffer);
-        clientfd_to_listingId[clientfd] = neworder.listingId;
-        add_order_table(neworder);
+        NewOrder new_order = parse_new_order(buffer);
+        clientfd_to_listing_id[clientfd] = new_order.listing_id;
+        add_order_table(new_order);
     }
-    else if (messageType == 2 && header.payloadSize == sizeof(DeleteOrder))
+    else if (message_type == 2 && header.payload_size == sizeof(DeleteOrder))
     {
-        DeleteOrder delorder = parse_del_order(buffer);
-        delete_order_table(delorder);
+        DeleteOrder del_order = parse_del_order(buffer);
+        delete_order_table(del_order);
         compute_hypothetical();
         return -1;
     }
-    else if (messageType == 3 && header.payloadSize == sizeof(ModifyOrderQuantity))
+    else if (message_type == 3 && header.payload_size == sizeof(ModifyOrderQuantity))
     {
         ModifyOrderQuantity modify = parse_modify(buffer);
         modify_order_qty(modify);
     }
-    else if (messageType == 4 && header.payloadSize == sizeof(Trade))
+    else if (message_type == 4 && header.payload_size == sizeof(Trade))
     {
         Trade trade = parse_trade(buffer);
         trade_table(trade);
@@ -107,17 +107,17 @@ int Server::process_msg(int clientfd)
 static void create_response(const OrderResponse& order_resp, 
                             std::array<uint8_t, SIZE>& response)
 {
-    response[0] = static_cast<uint8_t>((order_resp.messageType) >> 8) & 0xFF;
-    response[1] = static_cast<uint8_t>(order_resp.messageType & 0xFF);
+    response[0] = static_cast<uint8_t>((order_resp.message_type) >> 8) & 0xFF;
+    response[1] = static_cast<uint8_t>(order_resp.message_type & 0xFF);
     
-    response[2] = static_cast<uint8_t>((order_resp.orderId >> 56) & 0xFF);
-    response[3] = static_cast<uint8_t>((order_resp.orderId >> 48) & 0xFF);
-    response[4] = static_cast<uint8_t>((order_resp.orderId >> 40) & 0xFF);
-    response[5] = static_cast<uint8_t>((order_resp.orderId >> 32) & 0xFF);
-    response[6] = static_cast<uint8_t>((order_resp.orderId >> 24) & 0xFF);
-    response[7] = static_cast<uint8_t>((order_resp.orderId >> 16) & 0xFF);
-    response[8] = static_cast<uint8_t>((order_resp.orderId >> 8) & 0xFF);
-    response[9] = static_cast<uint8_t>((order_resp.orderId) & 0xFF);
+    response[2] = static_cast<uint8_t>((order_resp.order_id >> 56) & 0xFF);
+    response[3] = static_cast<uint8_t>((order_resp.order_id >> 48) & 0xFF);
+    response[4] = static_cast<uint8_t>((order_resp.order_id >> 40) & 0xFF);
+    response[5] = static_cast<uint8_t>((order_resp.order_id >> 32) & 0xFF);
+    response[6] = static_cast<uint8_t>((order_resp.order_id >> 24) & 0xFF);
+    response[7] = static_cast<uint8_t>((order_resp.order_id >> 16) & 0xFF);
+    response[8] = static_cast<uint8_t>((order_resp.order_id >> 8) & 0xFF);
+    response[9] = static_cast<uint8_t>((order_resp.order_id) & 0xFF);
 
     response[10] = (static_cast<uint8_t>(order_resp.status) >> 8) & 0xFF;
     response[11] = (static_cast<uint8_t>(order_resp.status)) & 0xFF;
@@ -125,20 +125,20 @@ static void create_response(const OrderResponse& order_resp,
 
 void Server::erase_client_data(int clientfd)
 {
-    auto listing = clientfd_to_listingId[clientfd];
-    auto search = listingId_to_data.find(listing);
-    if (search != listingId_to_data.end())
+    auto listing = clientfd_to_listing_id[clientfd];
+    auto search = listing_id_to_data.find(listing);
+    if (search != listing_id_to_data.end())
     {
         auto it = orders.begin();
         auto next_it = it;
         for (; it != orders.end(); it = next_it)
         {
             ++next_it;
-            if (it->second.listingId == listing)
+            if (it->second.listing_id == listing)
                 orders.erase(it);
         }   
-        listingId_to_data.erase(search);
-        clientfd_to_listingId.erase(clientfd);
+        listing_id_to_data.erase(search);
+        clientfd_to_listing_id.erase(clientfd);
     }
 }
 
@@ -146,12 +146,12 @@ void Server::send_response(int success,
                            const std::unordered_map<uint64_t, Data>& prev_map)
 {
     OrderResponse order_resp;
-    order_resp.messageType = 5;
-    order_resp.orderId = respId;
+    order_resp.message_type = 5;
+    order_resp.order_id = resp_id;
 
     if (success == 0)
     {
-        listingId_to_data = prev_map;
+        listing_id_to_data = prev_map;
         order_resp.status = OrderResponse::Status::REJECTED;
     }
     else if (success == 1)
@@ -161,18 +161,18 @@ void Server::send_response(int success,
     if (success != -1)
         create_response(order_resp, response);
 
-    for (auto const& [client, listid] : clientfd_to_listingId)
+    for (auto const& [client, listid] : clientfd_to_listing_id)
         send(client, response.data(), SIZE, MSG_NOSIGNAL);
 }
 
 void request_handler([[maybe_unused]] int id, Server& server, int clientfd) 
 {
     ssize_t size;
-    server.clientfd_to_listingId.emplace(clientfd, 0);
+    server.clientfd_to_listing_id.emplace(clientfd, 0);
     while (true)
     {
         size = recv(clientfd, server.buffer, sizeof(server.buffer), 0);
-        std::unordered_map<uint64_t, Data> prev_map = server.listingId_to_data;
+        std::unordered_map<uint64_t, Data> prev_map = server.listing_id_to_data;
         const std::lock_guard<std::mutex> lock(server.buffer_mutex);
         {
             if (size == 0)
