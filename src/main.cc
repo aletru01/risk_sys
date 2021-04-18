@@ -14,9 +14,9 @@ int main(int argc, char** argv)
 
     if (argc != 3)
     {
-        std::cerr << "Usage: ./server <buy_threshold> <sell_threshold>" 
+        std::cerr << "Usage: ./risk_sys <buy_threshold> <sell_threshold>" 
             << std::endl;
-        std::cerr << "Example: ./server 15 20" << std::endl;
+        std::cerr << "Example: ./risk_sys 15 20" << std::endl;
         exit(1);
     }
     std::string arg1 = argv[1];

@@ -142,23 +142,22 @@ void Server::erase_client_data(int clientfd)
     }
 }
 
-void Server::send_response(int success, 
-                           const std::unordered_map<uint64_t, Data>& prev_map)
+void Server::send_response(int ret, const std::unordered_map<uint64_t, Data>& prev_map)
 {
     OrderResponse order_resp;
     order_resp.message_type = 5;
     order_resp.order_id = resp_id;
 
-    if (success == 0)
+    if (ret == 0)
     {
         listing_id_to_data = prev_map;
         order_resp.status = OrderResponse::Status::REJECTED;
     }
-    else if (success == 1)
+    else if (ret == 1)
         order_resp.status = OrderResponse::Status::ACCEPTED;
 
     std::array<uint8_t, SIZE> response;
-    if (success != -1)
+    if (ret != -1)
         create_response(order_resp, response);
 
     for (auto const& [client, listid] : clientfd_to_listing_id)
@@ -181,8 +180,8 @@ void request_handler([[maybe_unused]] int id, Server& server, int clientfd)
                 break;
             }
 
-            int success = server.process_msg(clientfd);
-            server.send_response(success, prev_map);
+            int ret = server.process_msg(clientfd);
+            server.send_response(ret, prev_map);
         }
     }
     close(clientfd);
